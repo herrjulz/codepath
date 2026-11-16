@@ -1,0 +1,42 @@
+CodePath
+Copyright (c) 2026 Julian Skupnjak
+
+This product is licensed under the MIT License. See LICENSE.
+
+It also includes third-party software. Licenses below are for attribution;
+full license texts ship with those packages (Go module cache / npm
+node_modules). Versions change over time — treat this list as a guide to
+what a typical `make build` binary may incorporate.
+
+Go (linked into the binary)
+---------------------------
+github.com/modelcontextprotocol/go-sdk    Apache-2.0 (new code) / MIT (legacy)
+github.com/google/jsonschema-go           MIT
+github.com/segmentio/encoding             MIT
+github.com/segmentio/asm                  MIT
+github.com/yosida95/uritemplate/v3        BSD-2-Clause
+golang.org/x/oauth2                       BSD-3-Clause
+golang.org/x/sync                         BSD-3-Clause
+golang.org/x/sys                          BSD-3-Clause
+golang.org/x/time                         BSD-3-Clause
+
+Web UI (embedded in the binary via `make build`)
+------------------------------------------------
+@dagrejs/dagre                            MIT
+@dagrejs/graphlib                         MIT
+@monaco-editor/react                      MIT
+@monaco-editor/loader                     MIT
+@xyflow/react                             MIT
+@xyflow/system                            MIT
+monaco-editor                             MIT
+react                                     MIT
+react-dom                                 MIT
+zod                                       MIT
+classcat                                  MIT
+zustand                                   MIT
+marked                                    MIT
+d3-* (via @xyflow)                        ISC / BSD-3-Clause (d3-ease)
+dompurify (via monaco-editor)             MPL-2.0 OR Apache-2.0
+
+Build and test tools (Vite, Vitest, TypeScript, etc.) are not part of the
+distributed binary; they remain under their own licenses in web/package.json.

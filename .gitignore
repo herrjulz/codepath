@@ -1,0 +1,62 @@
+# Project
+docs/
+bin/
+
+# Frontend dependencies & build output
+# Keep web/dist/index.html (placeholder for go:embed); ignore hashed assets.
+web/node_modules/
+web/dist/assets/
+
+# Node / Vite / Vitest
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.tsbuildinfo
+coverage/
+.nyc_output/
+.vite/
+.vitest/
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.out
+coverage.html
+vendor/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Logs & temp
+*.log
+tmp/
+temp/
+.cache/

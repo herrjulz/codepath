@@ -1,0 +1,466 @@
+{
+  "schemaVersion": 1,
+  "title": "Demo: authentication flow",
+  "summary": "A walkthrough of the labeled demo login fixture. Example values are synthetic and this package does not authenticate real users.",
+  "language": "go",
+  "overview": {
+    "sequence": {
+      "participants": [
+        { "id": "client", "label": "Client" },
+        { "id": "handler", "label": "Login handler" },
+        { "id": "users", "label": "User store" },
+        { "id": "tokens", "label": "Token signer" }
+      ],
+      "messages": [
+        {
+          "id": "post_login",
+          "from": "client",
+          "to": "handler",
+          "label": "POST /login JSON body",
+          "kind": "call",
+          "stepId": "http_login"
+        },
+        {
+          "id": "lookup_user",
+          "from": "handler",
+          "to": "users",
+          "label": "lookupUser(email)",
+          "kind": "call",
+          "stepId": "user_lookup"
+        },
+        {
+          "id": "user_found",
+          "from": "users",
+          "to": "handler",
+          "label": "User record",
+          "kind": "return",
+          "stepId": "user_lookup"
+        },
+        {
+          "id": "check_password",
+          "from": "handler",
+          "to": "handler",
+          "label": "Compare fixture password",
+          "kind": "note",
+          "stepId": "password_check"
+        },
+        {
+          "id": "build_claims_msg",
+          "from": "handler",
+          "to": "tokens",
+          "label": "buildClaims(user)",
+          "kind": "call",
+          "stepId": "build_claims"
+        },
+        {
+          "id": "sign_token",
+          "from": "tokens",
+          "to": "tokens",
+          "label": "signJWT(claims)",
+          "kind": "note",
+          "stepId": "sign_jwt"
+        },
+        {
+          "id": "token_ready",
+          "from": "tokens",
+          "to": "handler",
+          "label": "demo token",
+          "kind": "return",
+          "stepId": "sign_jwt"
+        },
+        {
+          "id": "http_200",
+          "from": "handler",
+          "to": "client",
+          "label": "200 { token }",
+          "kind": "return",
+          "stepId": "http_ok"
+        },
+        {
+          "id": "missing_user_note",
+          "from": "users",
+          "to": "handler",
+          "label": "errNotFound → 401",
+          "kind": "return",
+          "stepId": "missing_user"
+        },
+        {
+          "id": "bad_password_note",
+          "from": "handler",
+          "to": "client",
+          "label": "password invalid → 401",
+          "kind": "return",
+          "stepId": "wrong_password"
+        }
+      ]
+    },
+    "erd": {
+      "entities": [
+        {
+          "id": "login_request",
+          "label": "LoginRequest",
+          "attributes": [
+            { "name": "Email", "type": "string" },
+            { "name": "Password", "type": "string" }
+          ]
+        },
+        {
+          "id": "user",
+          "label": "User",
+          "attributes": [
+            { "name": "ID", "type": "string", "key": "pk" },
+            { "name": "Email", "type": "string", "key": "unique" },
+            { "name": "PasswordHash", "type": "string" }
+          ]
+        },
+        {
+          "id": "claims",
+          "label": "Claims",
+          "attributes": [
+            { "name": "sub", "type": "string" },
+            { "name": "email", "type": "string" }
+          ]
+        },
+        {
+          "id": "token_response",
+          "label": "TokenResponse",
+          "attributes": [
+            { "name": "token", "type": "string" }
+          ]
+        }
+      ],
+      "relationships": [
+        {
+          "id": "request_to_user",
+          "from": "login_request",
+          "to": "user",
+          "label": "lookup by email",
+          "kind": "many_to_one"
+        },
+        {
+          "id": "user_to_claims",
+          "from": "user",
+          "to": "claims",
+          "label": "buildClaims",
+          "kind": "one_to_one"
+        },
+        {
+          "id": "claims_to_token",
+          "from": "claims",
+          "to": "token_response",
+          "label": "signJWT",
+          "kind": "one_to_one"
+        }
+      ]
+    }
+  },
+  "steps": [
+    {
+      "id": "http_login",
+      "title": "HTTP login handler",
+      "summary": "Decode the JSON login body.",
+      "explanation": "Login rejects non-POST requests, then decodes the body into LoginRequest. Later branches handle a missing user, a bad password, and a signed demo token. This is a fixture, not a production authenticator.",
+      "notes": [
+        "The password comparison and token are illustrative. No live credentials are involved."
+      ],
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 17,
+          "endLine": 46,
+          "label": "Login handler"
+        },
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 11,
+          "endLine": 14,
+          "label": "Login request"
+        }
+      ]
+    },
+    {
+      "id": "user_lookup",
+      "title": "User lookup",
+      "summary": "Find the demo user by email.",
+      "explanation": "lookupUser reads the in-memory map. The only account is dev@example.test. A missing email returns errNotFound, which the handler turns into HTTP 401.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/user.go",
+          "startLine": 27,
+          "endLine": 33,
+          "label": "lookupUser"
+        }
+      ]
+    },
+    {
+      "id": "password_check",
+      "title": "Password check",
+      "summary": "Compare the submitted password with the fixture password.",
+      "explanation": "checkPassword accepts only the demo account and compares the submitted string with the constant demo-only. It does not hash passwords and it does not call a real identity provider.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/user.go",
+          "startLine": 36,
+          "endLine": 41,
+          "label": "checkPassword"
+        }
+      ]
+    },
+    {
+      "id": "build_claims",
+      "title": "Build claims",
+      "summary": "Copy the user id and email into claims.",
+      "explanation": "buildClaims keeps the id and email and drops the password. The subject will be user_demo_1 for the fixture account.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/token.go",
+          "startLine": 20,
+          "endLine": 22,
+          "label": "buildClaims"
+        }
+      ]
+    },
+    {
+      "id": "sign_jwt",
+      "title": "Sign demo token",
+      "summary": "Turn the claims into a short fake token.",
+      "explanation": "signJWT HMAC-SHA256s the claims with the fixture key demo-signing-key-not-secret and returns a demo. prefix plus eight characters. It is not a JWT and it is not a session.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/token.go",
+          "startLine": 25,
+          "endLine": 37,
+          "label": "signJWT"
+        }
+      ]
+    },
+    {
+      "id": "http_ok",
+      "title": "HTTP 200 response",
+      "summary": "Write the demo token as JSON.",
+      "explanation": "On the success path Login calls writeJSON with status 200 and a body that contains the abbreviated token.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 48,
+          "endLine": 52,
+          "label": "writeJSON"
+        },
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 45,
+          "endLine": 45,
+          "label": "200 response"
+        }
+      ]
+    },
+    {
+      "id": "missing_user",
+      "title": "Missing user",
+      "summary": "Reject an email that is not in the demo map.",
+      "explanation": "When lookupUser returns an error, Login writes HTTP 401 and does not check a password or build claims. The response uses the same invalid-credentials text as a bad password.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 30,
+          "endLine": 33,
+          "label": "Missing user branch"
+        },
+        {
+          "path": "fixtures/demoauth/user.go",
+          "startLine": 27,
+          "endLine": 33,
+          "label": "lookupUser"
+        }
+      ]
+    },
+    {
+      "id": "wrong_password",
+      "title": "Wrong password",
+      "summary": "Reject a password that does not match the fixture.",
+      "explanation": "The user record was found, but checkPassword returned false. Login writes HTTP 401 and does not build claims or a token.",
+      "codeRefs": [
+        {
+          "path": "fixtures/demoauth/handler.go",
+          "startLine": 34,
+          "endLine": 37,
+          "label": "Wrong password branch"
+        },
+        {
+          "path": "fixtures/demoauth/user.go",
+          "startLine": 36,
+          "endLine": 41,
+          "label": "checkPassword"
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {"id": "login_to_lookup", "from": "http_login", "to": "user_lookup", "label": "body decoded", "kind": "next"},
+    {"id": "lookup_found", "from": "user_lookup", "to": "password_check", "label": "user found", "kind": "condition"},
+    {"id": "lookup_missing", "from": "user_lookup", "to": "missing_user", "label": "user missing", "kind": "error"},
+    {"id": "password_ok", "from": "password_check", "to": "build_claims", "label": "password valid", "kind": "condition"},
+    {"id": "password_bad", "from": "password_check", "to": "wrong_password", "label": "password invalid", "kind": "error"},
+    {"id": "claims_to_sign", "from": "build_claims", "to": "sign_jwt", "label": "claims ready", "kind": "next"},
+    {"id": "sign_to_response", "from": "sign_jwt", "to": "http_ok", "label": "signed", "kind": "next"}
+  ],
+  "scenarios": [
+    {
+      "id": "success",
+      "name": "Successful login",
+      "description": "The demo user submits the fixture password and receives an abbreviated token.",
+      "path": ["http_login", "user_lookup", "password_check", "build_claims", "sign_jwt", "http_ok"],
+      "examples": [
+        {
+          "stepId": "http_login",
+          "kind": "synthetic",
+          "input": {"format": "json", "content": "{\n  \"email\": \"dev@example.test\",\n  \"password\": \"demo-only\"\n}"},
+          "transformation": "Decode the JSON body into LoginRequest. The password is the fixture value demo-only, not a real credential.",
+          "output": {"format": "go", "content": "LoginRequest{\n  Email: \"dev@example.test\",\n  Password: \"demo-only\",\n}"},
+          "fieldChanges": [
+            {"field": "body.email", "before": "dev@example.test", "after": "LoginRequest.Email", "why": "The email string is copied onto the request struct."},
+            {"field": "body.password", "before": "demo-only", "after": "LoginRequest.Password", "why": "The fixture password is kept only for the later comparison."}
+          ]
+        },
+        {
+          "stepId": "user_lookup",
+          "kind": "synthetic",
+          "input": {"format": "go", "content": "email := \"dev@example.test\""},
+          "transformation": "Look up the email in the in-memory demo map.",
+          "output": {"format": "go", "content": "User{\n  ID: \"user_demo_1\",\n  Email: \"dev@example.test\",\n  PasswordHash: \"[redacted]\",\n}"},
+          "fieldChanges": [
+            {"field": "email", "after": "user.Email", "why": "The map key becomes the user record email."},
+            {"field": "user.PasswordHash", "after": "[redacted]", "why": "The fixture hash is not a real password hash and is shown redacted."}
+          ]
+        },
+        {
+          "stepId": "password_check",
+          "kind": "synthetic",
+          "input": {"format": "text", "content": "user=user_demo_1\npassword=demo-only"},
+          "transformation": "Compare the submitted password with the fixture constant demo-only.",
+          "output": {"format": "text", "content": "true"},
+          "fieldChanges": [
+            {"field": "valid", "before": "unset", "after": "true", "why": "The fixture password matches, so the success branch continues."}
+          ]
+        },
+        {
+          "stepId": "build_claims",
+          "kind": "synthetic",
+          "input": {"format": "go", "content": "User{ID: \"user_demo_1\", Email: \"dev@example.test\"}"},
+          "transformation": "Copy the id and email into claims. The password is not copied.",
+          "output": {"format": "json", "content": "{\n  \"sub\": \"user_demo_1\",\n  \"email\": \"dev@example.test\"\n}"},
+          "fieldChanges": [
+            {"field": "user.ID", "before": "user_demo_1", "after": "claims.sub", "why": "The user id becomes the subject."},
+            {"field": "user.Email", "before": "dev@example.test", "after": "claims.email", "why": "The email is copied onto the claims."}
+          ]
+        },
+        {
+          "stepId": "sign_jwt",
+          "kind": "synthetic",
+          "input": {"format": "json", "content": "{\n  \"sub\": \"user_demo_1\",\n  \"email\": \"dev@example.test\"\n}"},
+          "transformation": "HMAC-SHA256 the claims with the demo signing key and keep a short prefix. This was not captured from a running server.",
+          "output": {"format": "text", "content": "demo.abcd1234"},
+          "fieldChanges": [
+            {"field": "claims", "before": "sub=user_demo_1", "after": "demo.abcd1234", "why": "The claims are reduced to an abbreviated demo token."}
+          ]
+        },
+        {
+          "stepId": "http_ok",
+          "kind": "synthetic",
+          "input": {"format": "text", "content": "demo.abcd1234"},
+          "transformation": "Write HTTP 200 and a JSON body containing the demo token.",
+          "output": {"format": "http", "content": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"token\":\"demo.abcd1234\"}"},
+          "fieldChanges": [
+            {"field": "token", "before": "demo.abcd1234", "after": "response.token", "why": "The abbreviated token is placed in the JSON response body."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wrong_password",
+      "name": "Wrong password",
+      "description": "The demo user exists, but the submitted password does not match.",
+      "path": ["http_login", "user_lookup", "password_check", "wrong_password"],
+      "examples": [
+        {
+          "stepId": "http_login",
+          "kind": "synthetic",
+          "input": {"format": "json", "content": "{\n  \"email\": \"dev@example.test\",\n  \"password\": \"wrong-demo\"\n}"},
+          "transformation": "Decode the JSON body. The email is the fixture user and the password is intentionally wrong.",
+          "output": {"format": "go", "content": "LoginRequest{\n  Email: \"dev@example.test\",\n  Password: \"wrong-demo\",\n}"},
+          "fieldChanges": [
+            {"field": "body.password", "before": "wrong-demo", "after": "LoginRequest.Password", "why": "The rejected password is carried into the request struct."}
+          ]
+        },
+        {
+          "stepId": "user_lookup",
+          "kind": "synthetic",
+          "input": {"format": "go", "content": "email := \"dev@example.test\""},
+          "transformation": "The email is present in the demo map, so lookup succeeds before the password is checked.",
+          "output": {"format": "go", "content": "User{\n  ID: \"user_demo_1\",\n  Email: \"dev@example.test\",\n  PasswordHash: \"[redacted]\",\n}"},
+          "fieldChanges": [
+            {"field": "email", "after": "user.Email", "why": "The known demo email resolves to user_demo_1."}
+          ]
+        },
+        {
+          "stepId": "password_check",
+          "kind": "synthetic",
+          "input": {"format": "text", "content": "user=user_demo_1\npassword=wrong-demo"},
+          "transformation": "Compare wrong-demo with the fixture password demo-only.",
+          "output": {"format": "text", "content": "false"},
+          "fieldChanges": [
+            {"field": "valid", "before": "unset", "after": "false", "why": "The passwords differ, so the handler takes the error branch."}
+          ]
+        },
+        {
+          "stepId": "wrong_password",
+          "kind": "synthetic",
+          "input": {"format": "text", "content": "valid=false"},
+          "transformation": "Write HTTP 401. No claims and no token are produced.",
+          "output": {"format": "http", "content": "HTTP/1.1 401 Unauthorized\nContent-Type: application/json\n\n{\"error\":\"invalid credentials\"}"},
+          "fieldChanges": [
+            {"field": "response.status", "before": "unset", "after": "401", "why": "A failed password check becomes an unauthorized response."}
+          ]
+        }
+      ]
+    },
+    {
+      "id": "missing_user",
+      "name": "Missing user",
+      "description": "The email is not in the demo map, so login stops at lookup.",
+      "path": ["http_login", "user_lookup", "missing_user"],
+      "examples": [
+        {
+          "stepId": "http_login",
+          "kind": "synthetic",
+          "input": {"format": "json", "content": "{\n  \"email\": \"nobody@example.test\",\n  \"password\": \"demo-only\"\n}"},
+          "transformation": "Decode the JSON body for an email that the fixture does not contain.",
+          "output": {"format": "go", "content": "LoginRequest{\n  Email: \"nobody@example.test\",\n  Password: \"demo-only\",\n}"},
+          "fieldChanges": [
+            {"field": "body.email", "before": "nobody@example.test", "after": "LoginRequest.Email", "why": "The unknown email is the lookup key."}
+          ]
+        },
+        {
+          "stepId": "user_lookup",
+          "kind": "synthetic",
+          "input": {"format": "go", "content": "email := \"nobody@example.test\""},
+          "transformation": "The demo map has no entry for this email, so lookup returns errNotFound.",
+          "output": {"format": "go", "content": "error: user not found"},
+          "fieldChanges": [
+            {"field": "user", "before": "unset", "after": "not found", "why": "There is no demo record to continue with."}
+          ]
+        },
+        {
+          "stepId": "missing_user",
+          "kind": "synthetic",
+          "input": {"format": "text", "content": "error: user not found"},
+          "transformation": "Write HTTP 401 and skip the password check.",
+          "output": {"format": "http", "content": "HTTP/1.1 401 Unauthorized\nContent-Type: application/json\n\n{\"error\":\"invalid credentials\"}"},
+          "fieldChanges": [
+            {"field": "response.status", "before": "unset", "after": "401", "why": "A missing user is reported as invalid credentials."}
+          ]
+        }
+      ]
+    }
+  ]
+}
